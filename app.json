@@ -1,0 +1,12 @@
+{
+  "name": "longClick",
+  "displayName": "longClick",
+  "expo": {
+    "name": "longClick",
+    "slug": "longClick",
+    "version": "1.0.0",
+    "assetBundlePatterns": [
+      "**/*"
+    ]
+  }
+}
