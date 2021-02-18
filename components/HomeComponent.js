@@ -3,15 +3,18 @@ import {Card} from 'react-native-elements';
 import {ScrollView,Text,FlatList, StyleSheet,View} from 'react-native';
 import {connect} from 'react-redux';
 import {Button,Tile} from 'react-native-elements';
-import {Icon} from 'react-native-vector-icons/FontAwesome';
-import {Video,Audio} from 'expo-av';
-import VideoPlayer from 'expo-video-player'
+import {getStoredJWTToken} from '../redux/ActionCreators';
 
 const mapStateToProps=(state)=>{
     return{
         clicks:state.clicks,
+        users:state.users
     }
-}
+};
+
+const mapDispatchToProps=dispatch=>({
+    getStoredJWTToken:()=>dispatch(getStoredJWTToken())
+});
 
 
 
@@ -21,6 +24,11 @@ class Home extends Component{
     {
         super(props);
         
+    }
+
+    componentDidMount()
+    {
+        this.props.getStoredJWTToken();
     }
     
 
@@ -39,10 +47,17 @@ class Home extends Component{
                 <Tile
                     key={index}
                     hideChevron={true}
-                    title={item.name}
-                    caption="Here Video Caption"
+                    title={item.title}
+                    caption={item.description}
                     featured
-                    onPress={()=>this.props.navigation.navigate('ClickDetail',{videoUrl:this.props.clicks.clicksUrl[+index]})}>
+                    onPress={()=>this.props.navigation.navigate('ClickDetail',
+                        {
+                            clickDetails:this.props.clicks.clicks[+index],
+                            clickName:this.props.clicks.clicks[+index].title,
+                            jwtToken:this.props.users.jwtToken,
+                            videoId:item._id
+                        }
+                    )}>
                 </Tile>
             );
         }
@@ -70,4 +85,4 @@ const styles= StyleSheet.create({
     },
 });
 
-export default connect(mapStateToProps)(Home);
+export default connect(mapStateToProps,mapDispatchToProps)(Home);

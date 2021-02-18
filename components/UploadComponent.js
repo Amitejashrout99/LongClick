@@ -1,25 +1,28 @@
 import React,{Component} from 'react';
-import {Card,Button} from 'react-native-elements';
+import {Card,Button,Input} from 'react-native-elements';
 import {ScrollView,Text,StyleSheet,View,Dimensions,ActivityIndicator} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Permissions from 'expo-permissions';
 import * as Notifications from 'expo-notifications';
 import {Video,Audio} from 'expo-av';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import {postNewClick} from '../redux/ActionCreators';
+import {postNewClick,getStoredJWTToken} from '../redux/ActionCreators';
 import {connect} from 'react-redux';
-import {Loading} from './LoadingComponent';
-import { block } from 'react-native-reanimated';
+
 
 const mapStateToProps= state=>{
     return{
-        clicks:state.clicks
+        clicks:state.clicks,
+        users:state.users
     }
 };
 
 const mapDispatchToProps = dispatch=>({
-    postNewClick:(username,title,fileUrl)=>dispatch(postNewClick(username,title,fileUrl))
+    postNewClick:(title,description,category,fileUrl,token)=>dispatch(postNewClick(title,description,category,fileUrl,token)),
+    getStoredJWTToken:()=>dispatch(getStoredJWTToken())
 });
+
+
 
 
 function RenderLoader({status})
@@ -27,7 +30,6 @@ function RenderLoader({status})
     console.log(status);
     if(status)
     {
-        alert("Click has been uploaded");
         return(
             <View style={{ alignItems:`center`,justifyContent:`center`,flex:1,margin:20}}>
                 <ActivityIndicator size="large" color="#512DA8"/>
@@ -44,6 +46,26 @@ function RenderLoader({status})
     }
 }
 
+function RenderAuthenticationStatus({status})
+{
+    if(!status)
+    {
+        return(
+            <View style={{flex:1,alignItems:`center`,justifyContent:`center`,marginTop:20}}>
+                <Text style={{color:"#512AD8"}}>You need to be authenticated for uploading new click</Text>
+            </View>
+        );
+    }
+    else{
+        return(
+            <View>
+
+            </View>
+        )
+    }
+    
+}
+
 class Upload extends Component{
 
     constructor(props)
@@ -51,11 +73,14 @@ class Upload extends Component{
         super(props);
         this.state={
             videoUrl:'',
-            name:"Ravi",
-            caption:"",
+            title:"",
+            description:"",
+            category:"",
+            uploadClickButtonStatus:true
         }
 
     }
+
 
 
     componentDidMount(){
@@ -70,6 +95,9 @@ class Upload extends Component{
                 console.log("Notification triggered");
             }
         });
+
+        this.props.getStoredJWTToken();
+
     }
 
 
@@ -127,37 +155,42 @@ class Upload extends Component{
     }
 
     postNewClick=()=>{
-        this.props.postNewClick(this.state.name,this.state.caption,this.state.videoUrl);
+        this.props.postNewClick(this.state.title,this.state.description,this.state.category,this.state.videoUrl,this.props.users.jwtToken);
+    }
+
+    testMethod=()=>{
+        alert(JSON.stringify(this.state));
     }
 
 
     render(){
         
-        //console.log(this.props.clicks.isUploading);
         if(this.state.videoUrl==='')
         {
             return(
-                <View>
+                <ScrollView>
                     <Card>
                         <Card.Title>Click Upload</Card.Title>
                         <Card.Divider/>
                         <Text>Please Click on the upload Video Button to upload a video</Text>
                         <Text>{this.state.data}</Text>
-                        <Button 
-                            title="Upload Click" 
-                            raised 
-                            icon={
-                                <Icon
-                                    name="upload"
-                                    size={24}
-                                    color="black"
-                                />
-                            }
-                            buttonStyle={styles.buttonStyle}
-                            onPress={()=>this.getVideoFromCamera()}
-                        />
+                            <Button 
+                                title="Upload Click" 
+                                raised 
+                                icon={
+                                        <Icon
+                                            name="upload"
+                                            size={24}
+                                            color="black"
+                                        />
+                                }
+
+                                buttonStyle={styles.buttonStyle}
+                                onPress={()=>this.getVideoFromCamera()}
+                            />
                     </Card>
-                </View>
+                    <RenderAuthenticationStatus status={this.props.users.isAuthenticated}/>
+                </ScrollView>
             );
         }
         else{
@@ -182,24 +215,88 @@ class Upload extends Component{
                                 style={{width:width,height:400,margin:10}}
                             />
                         </View>
-                        
-                        
+                    </Card>
+                    <Card>
+                        <Card.Title>Provide Click Details</Card.Title>
+                        <Card.Divider/>
+                        <View style={styles.inputItems}>
+                            <Input label="Title" labelStyle={{color:"#512AD8"}} placeholder="Title of the click"
+                                onChangeText={(value)=>{
+                                    if(value=='')
+                                    {
+                                        this.setState({
+                                            uploadClickButtonStatus:true,
+                                            title:value
+                                        });
+                                    }
+                                    else{
+                                        this.setState({
+                                            title:value,
+                                            uploadClickButtonStatus:false
+                                        });
+                                    }
+                                    
+                                }}
+                                value={this.state.title}
+                            />
+                            <Input label="Description" labelStyle={{color:"#512AD8"}} placeholder="Description of the click"
+                                onChangeText={(value)=>{
+                                    if(value=='')
+                                    {
+                                        this.setState({
+                                            uploadClickButtonStatus:true,
+                                            description:value
+                                        });
+                                    }
+                                    else{
+                                        this.setState({
+                                            description:value,
+                                            uploadClickButtonStatus:false
+                                        });
+                                    }
+                                    
+                                }}
+                                value={this.state.description}
+                            />
+                            <Input label="Category" labelStyle={{color:"#512AD8"}} placeholder="Provide a category for the click"
+                                onChangeText={(value)=>{
+                                    if(value=='')
+                                    {
+                                        this.setState({
+                                            uploadClickButtonStatus:true,
+                                            category:value
+                                        });
+                                    }
+                                    else{
+                                        this.setState({
+                                            category:value,
+                                            uploadClickButtonStatus:false
+                                        });
+                                    }
+                                    
+                                }}
+                                value={this.state.category}
+                            />
+                        </View>
+                    </Card>
+                    <Card>
                         <Button 
                             title="Retake Click" 
                             raised 
                             icon={
-                                <Icon
-                                    name="upload"
-                                    size={24}
-                                    color="black"
-                                />
+                                    <Icon
+                                        name="upload"
+                                        size={24}
+                                        color="black"
+                                    />
                             }
                             buttonStyle={styles.buttonStyle}    
                             onPress={()=>this.getVideoFromCamera()}
                         />
                         <Button 
                             title="Upload Click" 
-                            raised 
+                            raised
+                            disabled={this.state.uploadClickButtonStatus && !this.props.users.isAuthenticated}
                             icon={
                                 <Icon
                                     name="upload"
@@ -211,6 +308,7 @@ class Upload extends Component{
                             onPress={()=>this.postNewClick()}
                         />
                     </Card>
+                    <RenderAuthenticationStatus status={this.props.users.isAuthenticated}/>
                 </ScrollView>
             )
         }
@@ -221,7 +319,6 @@ let width= Dimensions.get('window').width;
 const styles= StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -245,6 +342,12 @@ const styles= StyleSheet.create({
         fontSize:14,
         fontWeight:'bold',
         marginTop:20
+    },
+    inputItems:{
+        flex:1,
+        alignItems:'center',
+        justifyContent:'center',
+        margin:5
     }
 });
 

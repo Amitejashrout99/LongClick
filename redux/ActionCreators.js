@@ -1,12 +1,171 @@
 import * as ActionTypes from './ActionTypes';
 import {baseUrl} from '../shared/baseUrl';
+import * as SecureStore from 'expo-secure-store';
+import { comments } from '../reducers/comments';
+
+export const StoreJWTToken=(token)=>(dispatch)=>{
+    console.log(token);
+    SecureStore.isAvailableAsync().then((value)=>{
+        if(value)
+        {
+            console.log("Async Storage is available on this device");
+            SecureStore.setItemAsync('userJWT',JSON.stringify(
+                {jwtToken:token}
+            )).catch((error)=>{
+                console.log(error);
+            });
+        }
+        else{
+            console.log("Async Storage is not available on this device");
+        }
+    }).catch((error)=>{
+        console.log(error);
+    });
+};
+
+export const getStoredJWTToken=()=>(dispatch)=>{
+    SecureStore.getItemAsync('userJWT').then((token)=>{
+        let jwttoken=JSON.parse(token);
+        if(jwttoken!=null)
+        {
+            dispatch(verifyTokenValidity(jwttoken.jwtToken));
+            return true;
+        }
+        else{
+            dispatch(loginFailure("You are'nt authenticated, Please sign in"));
+            return false;
+        }
+        
+        
+    }).catch((error)=>{
+        console.log(error);
+    });
+};
+
+
+export const removeStoredJWTToken=()=>(dispatch)=>{
+    SecureStore.deleteItemAsync('userJWT').catch((error)=>{
+        console.log(error);
+    });
+}
+
+export const verifyTokenValidity=(token)=>(dispatch)=>{
+    return fetch(baseUrl+'users/checkValidity/'+token).then((response)=>{
+        if(response.ok)
+        {
+            return response;
+        }
+        else{
+            var error= new Error('Error '+ response.status+ ':'+ response.statusText);
+            error.response=response;
+            throw error;
+        }
+    },(error)=>{
+        var error= new Error('Error '+ response.status+ ':'+ response.statusText);
+        error.response=response;
+        throw error;
+    }).then(
+        response=>response.json()
+    ).then(
+        tokenObject=>dispatch(refreshTokenSuccessfull(tokenObject.token))
+    ).catch(
+        error=>dispatch(refreshTokenFailure(error.response.status))
+    );
+}
+
+export const resetEditCommentErrorState=()=>({
+    type:ActionTypes.RESET_EDIT_COMMENT_FAILURE_STATE
+});
+
+export const resetAddCommentErrorState=()=>({
+    type:ActionTypes.RESET_ADD_COMMENT_FAILURE_STATE
+});
+
+export const refreshTokenSuccessfull=(token)=>({
+    type:ActionTypes.REFRESH_TOKEN_SUCCESSFULL,
+    payload:token
+});
+
+export const refreshTokenFailure=(errMess)=>({
+    type:ActionTypes.REFRESH_TOKEN_FAILURE,
+    payload:errMess
+});
+
+
+export const loginUser=(username,password)=>(dispatch)=>{
+    
+    dispatch(isLogginIn());
+    console.log(username+" "+password);
+    
+    let credentialsObject={
+        username:username,
+        password:password
+    };
+    
+    fetch(baseUrl+'users/login',{
+        method:'POST',
+        body:JSON.stringify(credentialsObject),
+        headers:{
+            'Content-Type':'application/json'
+        },
+        credentials:'same-origin'
+    }).then((response)=>{
+        
+        if(response.ok)
+        {
+            return response;
+        }
+        else{
+            var error= new Error('Error '+ response.status+ ':'+ response.statusText);
+            error.response=response;
+            throw error;
+        }
+
+    },(error)=>{
+        
+        var error= new Error('Error '+ response.status+ ':'+ response.statusText);
+        error.response=response;
+        throw error;
+    
+    }).then(
+
+        response=> response.json()
+
+    ).then(
+
+        jwtToken=>{
+            console.log(jwtToken),
+            dispatch(loginSuccessfull(jwtToken.token))
+        }
+
+    ).catch((error)=>{
+
+        console.log(error);
+        dispatch(loginFailure(error))
+
+    });
+}
+
+export const isLogginIn=()=>({
+    type:ActionTypes.ATTEMPTING_TO_LOGIN,
+})
+
+export const loginSuccessfull=(jwtToken)=>({
+    type:ActionTypes.LOGIN_SUCCESSFULL,
+    payload:jwtToken
+});
+
+export const loginFailure=(errMess)=>({
+    type:ActionTypes.LOGIN_FAILURE,
+    payload:errMess
+});
 
 
 export const fetchAllClicks=()=>(dispatch)=>{
     dispatch(clicksLoading());
 
     let url=[];
-    return fetch(baseUrl+'downloadSnap').then((response)=>{
+    return fetch(baseUrl+'click/clickDownload').then((response)=>{
         if(response.ok)
         {
             return response;
@@ -22,47 +181,66 @@ export const fetchAllClicks=()=>(dispatch)=>{
     }).then(
         response=>response.json()
     ).then(
-        clicks=>{
-            dispatch(addClicks(clicks)),
-            clicks.map((click)=>{
-                fetch(baseUrl+'downloadSnap/'+click._id).then((response)=>{
-                    if(response.ok)
-                    {
-                        return response;
-                    }
-                    else{
-                        var error= new Error('Error '+ response.status+ ': '+ response.statusText);
-                        error.response=response;
-                        throw error;
-                    }           
-                },(error)=>{
-                    var errMess= new Error(error.message)
-                    throw errMess;
-                }).then(
-                    response=>response.json()
-                ).then(
-                    signedUrl=>url.push(signedUrl.url)
-                ).catch(
-                    error=>dispatch(addClicksFailed(error))
-                );
-            }),
-
-            dispatch(addClicksUrl(url))
-        }
-        
-        
+        clicks=>dispatch(addClick(clicks))
     ).catch(
-        error=>dispatch(addClicksFailed(error))
+        error=>dispatch(addClicksFailed(error.response.status))
     );
 };
 
+export const fetchClickSignedUrl=(videoId)=>(dispatch)=>{
+    console.log(videoId);
+    return fetch(baseUrl+'click/clickDownload/'+videoId).then((response)=>{
+        if(response.ok)
+        {
+            return response;
+        }
+        else{
+            var error= new Error('Error '+ response.status+ ': '+ response.statusText);
+            error.response=response;
+            throw error;
+        }           
+    },(error)=>{
+        var errMess= new Error(error.message)
+        throw errMess;
+    }).then(
+        response=>response.json()
+    ).then(
+        signedUrl=>dispatch(addClicksUrl(signedUrl.url))
+    ).catch(
+        error=>dispatch(addClicksFailed(error.response.status))
+    );
+}
 
-export const postNewClick=(name,title,fileUrl)=>(dispatch)=>{
+
+export const clicksLoading=()=>({
+    type:ActionTypes.LOAD_ALL_CLICKS
+});
+
+export const addClick=(click)=>({
+    type:ActionTypes.ADD_ALL_CLICKS,
+    payload:click
+});
+
+export const addClicksUrl=(url)=>({
+    type:ActionTypes.ADD_ALL_CLICKS_URL,
+    payload:url
+});
+
+export const addClicksFailed=(error)=>({
+    type:ActionTypes.CLICKS_ADD_FAILED,
+    payload:error
+});
+
+
+export const postNewClick=(title,description,category,fileUrl,token)=>(dispatch)=>{
     dispatch(newClickUploading());
     
+    console.log(fileUrl);
+
     let newClickData={
-        "name":name,
         "title":title,
+        "description":description,
+        "category":category
     }
 
     let fileType=fileUrl.split("/")[9].split('.')[1];
@@ -82,11 +260,12 @@ export const postNewClick=(name,title,fileUrl)=>(dispatch)=>{
     formData.append('videoSnap',newClick);
     formData.append('document',JSON.stringify(newClickData));
 
-    return fetch(baseUrl+'uploadSnap',{
+    return fetch(baseUrl+'click/clickUpload',{
         method:'POST',
         body:formData,
         headers:{
-            'Content-Type':'multipart/form-data'
+            'Content-Type':'multipart/form-data',
+            'Authorization':'Bearer '+token
         },
         credentials:'same-origin'
     }).then((response)=>{
@@ -107,27 +286,7 @@ export const postNewClick=(name,title,fileUrl)=>(dispatch)=>{
     ).then(
         postData=>{
             console.log(postData),
-            dispatch(updateAllClicks(postData.dbInfo)),
-            fetch(baseUrl+'downloadSnap/'+postData.dbInfo._id).then((response)=>{
-                if(response.ok)
-                {
-                    return response;
-                }
-                else{
-                    var error= new Error('Error '+ response.status+ ':'+ response.statusText);
-                    error.response=response;
-                    throw error;
-                }
-            },(error)=>{
-                var errmess= new Error(error.message);
-                throw errmess;
-            }).then(
-                response=>response.json()
-            ).then(
-                newClickSignedUrl=>dispatch(updateAllClicksUrl(newClickSignedUrl.url))
-            ).catch((error)=>{
-                console.log(error)
-            })
+            dispatch(updateAllClicks(postData.dbInfo))
         }
     ).catch((error)=>{
         console.log(error);
@@ -152,24 +311,198 @@ export const updateAllClicksUrl=(newClickUrl)=>({
 });
 
 
+export const fetchAllComments=(videoId)=>(dispatch)=>{
+    dispatch(loadingComments());
+    
+    return fetch(baseUrl+'click/clickDownload/'+videoId+'/comments').then((response)=>{
+        if(response.ok)
+        {
+            return response;
+        }
+        else{
+            var error= new Error('Error '+ response.status+ ':'+ response.statusText);
+            error.response=response;
+            throw error;
+        }
+    },(error)=>{
+        var errMess= new Error(error.message)
+        throw errMess;
+    }).then(
+        response=>response.json()
+    ).then(
+        allComments=>dispatch(addAllComments(allComments))
+    ).catch(error=>addCommentsFailed(error.response.status));
 
-export const clicksLoading=()=>({
-    type:ActionTypes.LOAD_ALL_CLICKS
+};
+
+export const loadingComments=()=>({
+    type:ActionTypes.LOAD_ALL_COMMENTS
 });
 
-export const addClicks=(clicks)=>({
-    type:ActionTypes.ADD_ALL_CLICKS,
-    payload:clicks
+export const addAllComments=(comments)=>({
+    type:ActionTypes.ADD_ALL_COMMENTS,
+    payload:comments
 });
 
-export const addClicksUrl=(url)=>({
-    type:ActionTypes.ADD_ALL_CLICKS_URL,
-    payload:url
+export const addCommentsFailed=(errMess)=>({
+    type:ActionTypes.COMMENTS_ADD_FAILED,
+    payload:errMess
 });
 
-export const addClicksFailed=(error)=>({
-    type:ActionTypes.CLICKS_ADD_FAILED,
-    payload:error
+export const addComment=(videoId,comment,rating,token)=>(dispatch)=>{
+    dispatch(startEditingComment());
+    console.log(videoId+" "+comment+" "+rating+" "+token);
+    let commentObj={
+        "comment":comment,
+        "rating":rating
+    };
+
+    return fetch(baseUrl+'click/clickDownload/'+videoId+'/comments',{
+        method:'POST',
+        body:JSON.stringify(commentObj),
+        headers:{
+            'Content-Type':'Application/json',
+            'Authorization':'Bearer '+token
+        },
+        credentials:`same-origin`
+    }).then((response)=>{
+        if(response.ok)
+        {
+            return response;
+        }
+        else{
+            var error= new Error('Error '+ response.status+ ':'+ response.statusText);
+            error.response=response;
+            throw error;
+        }
+    },(error)=>{
+        var errMess= new Error(error.message)
+        throw errMess;
+    }).then(
+        response=>response.json()
+    ).then(
+        updatedComments=>dispatch(addCommentSuccessfull(updatedComments))
+    ).catch(
+        error=>dispatch(addCommentFailure(error.response.status)));
+};
+
+
+
+export const startAddingComment=()=>({
+    type:ActionTypes.START_ADDING_COMMENT
+});
+
+export const addCommentSuccessfull=(comments)=>({
+    type:ActionTypes.ADD_COMMENT_SUCCESSFULL,
+    payload:comments
+});
+
+export const addCommentFailure=(errMess)=>({
+    type:ActionTypes.ADD_COMMENT_FAILURE,
+    payload:errMess
 });
 
 
+export const editComment=(videoId,commentId,newComment,newRating,token)=>(dispatch)=>{
+    console.log(videoId+" "+commentId+" "+newComment+" "+newRating+" "+token);
+    
+    let commentBody={
+        "comment":newComment,
+        "rating":newRating
+    }
+
+    console.log(JSON.stringify(commentBody));
+    
+    dispatch(startEditingComment());
+
+    return fetch(baseUrl+'click/clickDownload/'+videoId+'/comments/'+commentId,{
+        method:'PUT',
+        body:JSON.stringify(commentBody),
+        headers:{
+            'Content-Type':'application/json',
+            'Authorization':'Bearer '+token
+        },
+        credentials:'same-origin'
+
+    }).then((response)=>{
+        if(response.ok)
+        {
+            return response;
+        }
+        else{
+            var error= new Error('Error '+ response.status+ ':'+ response.statusText);
+            error.response=response;
+            throw error;
+        }
+    },(error)=>{
+        var errMess= new Error(error.message)
+        throw errMess;
+    }).then(
+        response=>response.json()
+    ).then(
+        allComments=>dispatch(editingCommentSuccessfull(allComments))
+    ).catch(
+        error=>dispatch(editingCommentFailure(error.response.status)));
+};
+
+
+
+export const startEditingComment=()=>({
+    type:ActionTypes.START_EDIT_COMMENT
+});
+
+export const editingCommentSuccessfull=(comments)=>({
+    type:ActionTypes.EDIT_COMMENT_SUCCESSFULL,
+    payload:comments
+});
+
+export const editingCommentFailure=(errMess)=>({
+    type:ActionTypes.EDIT_COMMENT_FAILURE,
+    payload:errMess
+});
+
+
+export const fetchAllFavourites=(token)=>(dispatch)=>{
+    dispatch(loadAllFavourites());
+    return fetch(baseUrl+'favourite/userFavourite',{
+        method:'GET',
+        headers:{
+            'Content-Type':'Application/json',
+            'Authorization':'Bearer '+token
+        },
+        credentials:'same-origin'
+    }).then((response)=>{
+        if(response.ok)
+        {
+            return response;
+        }
+        else{
+            var error= new Error('Error '+ response.status+ ':'+ response.statusText);
+            error.response=response;
+            throw error;
+        }
+    },(error)=>{
+        var errMess= new Error(error.message)
+        throw errMess;
+    }).then(
+        response=>response.json()
+    ).then(
+        allFavourites=>dispatch(addAllFavourites(allFavourites.favourite))
+    ).catch(
+        error=>dispatch(addFavouritesFailure(error.response.status))
+    );
+};
+
+export const loadAllFavourites=()=>({
+    type:ActionTypes.LOAD_ALL_FAVOURITES
+});
+
+export const addAllFavourites=(favourites)=>({
+    type:ActionTypes.ADD_FAVOURITES_SUCCESSFULL,
+    payload:favourites
+});
+
+export const addFavouritesFailure=(errMess)=>({
+    type:ActionTypes.ADD_FAVOURITES_FAILURE,
+    payload:errMess
+});

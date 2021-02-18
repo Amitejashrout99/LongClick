@@ -4,7 +4,7 @@ export const clicks=(state={
     isLoading:true,
     errMess:null,
     clicks:[],
-    clicksUrl:[],
+    clicksUrl:null,
     isUploading:false
 },action)=>{
     switch(action.type)
