@@ -4,6 +4,8 @@ export const clicks=(state={
     isLoading:true,
     errMess:null,
     clicks:[],
+    clicksUrls:[],
+    clickThumbnailUrls:[],
     clicksUrl:null,
     isUploading:false
 },action)=>{
@@ -28,7 +30,18 @@ export const clicks=(state={
         case ACTION_TYPES.UPLOADING_NEW_CLICK:
 
             return{...state,isUploading:true};
+        
+        case ACTION_TYPES.GENERATE_ALL_CLICKS_URL_SUCCESSFULL:
+            return{...state,errMess:null,clicksUrls:action.payload};
 
+        case ACTION_TYPES.GENERATE_ALL_CLICKS_URL_FAILURE:
+            return{...state,errMess:action.payload,clicksUrls:[]};
+
+        case ACTION_TYPES.GENERATE_CLICKS_THUMBNAILS_SUCCESSFULL:
+            return{...state,errMess:null,clickThumbnailUrls:action.payload};
+        
+        case ACTION_TYPES.GENERATE_CLICKS_THUMBNAILS_FAILURE:
+            return{...state,errMess:action.payload,clickThumbnailUrls:[]};
 
         case ACTION_TYPES.UPDATE_ALL_CLICKS:
             return{...state,clicks:state.clicks.concat(action.payload),isUploading:false};

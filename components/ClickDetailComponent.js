@@ -4,15 +4,17 @@ import {ScrollView,Text,View,StyleSheet,Dimensions,ActivityIndicator,FlatList,Al
 import {Video,Audio} from 'expo-av';
 import VideoPlayer from 'expo-video-player';
 import {connect} from 'react-redux';
+import * as Notifications from 'expo-notifications';
 import {fetchAllComments,fetchClickSignedUrl,editComment,addComment,getStoredJWTToken,
-    verifyTokenValidity,resetAddCommentErrorState,resetEditCommentErrorState} from '../redux/ActionCreators';
+    verifyTokenValidity,addClickToFavourites,removeClickFromFavourites,resetAddCommentErrorState,resetEditCommentErrorState} from '../redux/ActionCreators';
 import Swipeout from 'react-native-swipeout';
 
 const mapStateToProps= state =>{
     return{
         comments:state.comments,
         clicks:state.clicks,
-        users:state.users
+        users:state.users,
+        favourites:state.favourites
     }
 };
 
@@ -24,7 +26,9 @@ const mapDispatchToProps= dispatch =>({
     getStoredJWTToken:()=>dispatch(getStoredJWTToken()),
     verifyTokenValidity:(token)=>dispatch(verifyTokenValidity(token)),
     resetAddCommentErrorState:()=>dispatch(resetAddCommentErrorState()),
-    resetEditCommentErrorState:()=>dispatch(resetEditCommentErrorState())
+    resetEditCommentErrorState:()=>dispatch(resetEditCommentErrorState()),
+    addClickToFavourites:(token,videoId)=>dispatch(addClickToFavourites(token,videoId)),
+    removeClickFromFavourites:(token,videoId)=>dispatch(removeClickFromFavourites(token,videoId))
 });
 
 function RenderVideoPlayer({signedUrl})
@@ -391,10 +395,211 @@ class ClickDetail extends Component{
     }
 
     componentDidMount(){
+        
+        Notifications.setNotificationHandler({
+            handleNotification:async()=>({
+                shouldShowAlert: true,
+                shouldPlaySound: true,
+                shouldSetBadge: false
+            }),
+            handleSuccess:async()=>{
+                console.log("Favourite Notification triggered");
+            }
+        });
+
         this.props.fetchAllComments(this.props.route.params.videoId);
         this.props.fetchClickSignedUrl(this.props.route.params.videoId);
         this.props.getStoredJWTToken();
     }
+
+    async obtainNotificationPermission(){
+        let permission = await Notifications.getPermissionsAsync();
+        console.log(permission);
+        if(permission.status!=='granted')
+        {
+            permission= await Notifications.requestPermissionsAsync();
+            console.log(permission);
+            if(permission.status!=='granted')
+            {
+                Alert.alert('Permission not granted to show notification');
+            }
+        }
+        
+
+        return permission;
+    }
+
+    async presentAddFavouriteNotification()
+    {
+        await this.obtainNotificationPermission;
+        Notifications.scheduleNotificationAsync({
+            content:{
+                title:"longClick Favourites",
+                body:'Click has been added to favourites'
+            },
+            trigger:null
+        });
+    }
+
+    async presentRemoveFavouriteNotification()
+    {
+        await this.obtainNotificationPermission;
+        Notifications.scheduleNotificationAsync({
+            content:{
+                title:"longClick Favourites",
+                body:'Click has been removed from favourites'
+            },
+            trigger:null
+        });
+    }
+
+
+
+    componentDidUpdate(prevProps)
+    {
+        if(prevProps.favourites.isFavourite!=this.props.favourites.isFavourite)
+        {
+            //console.log("First condition "+prevProps.favourites.isFavourite+" "+this.props.favourites.isFavourite);
+            if(this.props.favourites.isFavourite){
+                this.props.navigation.setOptions({
+                    headerRight: () => (
+                        <Icon
+                            name="heart"
+                            size={24}
+                            color="#FFFFFF"
+                            onPress={()=>Alert.alert(
+                                'Remove Click from Favorite',
+                                'Are You sure you wish to remove Click from Favourite ?',
+                                [
+                                    {
+                                        text:'Cancel', 
+                                        onPress:()=>{console.log("Not Deleted")},
+                                        style:'cancel'
+                                    },
+                                    {
+                                        text:'Remove',
+                                        onPress:()=>{
+                                            this.props.removeClickFromFavourites(this.props.route.params.jwtToken,
+                                                this.props.route.params.videoId);
+
+                                        }
+                                    }
+                                ],
+                                {cancelable:true}
+                            )}
+                        />
+                    ),
+                });
+            }
+            else{
+                this.props.navigation.setOptions({
+                    headerRight: () => (
+                        <Icon
+                            name="heart-o"
+                            size={24}
+                            color="#FFFFFF"
+                            onPress={()=>Alert.alert(
+                                'Add Click to Favorite',
+                                'Are you sure to add Click to favourite',
+                                [
+                                    {
+                                        text:'Cancel', 
+                                        onPress:()=>{console.log("Not Deleted")},
+                                        style:'cancel'
+                                    },
+                                    {
+                                        text:'Add',
+                                        onPress:()=>{
+                                            this.props.addClickToFavourites(this.props.route.params.jwtToken,this.props.route.params.videoId);
+                                        }
+                                    }
+                                ],
+                                {cancelable:true}
+                            )}
+                        />
+                    ),
+                });
+            }
+        }
+        else{
+            //console.log("Second condition "+prevProps.favourites.isFavourite+" "+this.props.favourites.isFavourite);
+            if(this.props.favourites.isFavourite){
+                this.props.navigation.setOptions({
+                    headerRight: () => (
+                        <Icon
+                            name="heart"
+                            size={24}
+                            color="#FFFFFF"
+                            onPress={()=>Alert.alert(
+                                'Remove Click from Favorite',
+                                'Are You sure you wish to remove Click from Favourite ?',
+                                [
+                                    {
+                                        text:'Cancel', 
+                                        onPress:()=>{console.log("Not Deleted")},
+                                        style:'cancel'
+                                    },
+                                    {
+                                        text:'Remove',
+                                        onPress:()=>{
+                                            this.props.removeClickFromFavourites(this.props.route.params.jwtToken,
+                                                this.props.route.params.videoId);
+
+                                        }
+                                    }
+                                ],
+                                {cancelable:true}
+                            )}
+                        />
+                    ),
+                });
+            }
+            else{
+                this.props.navigation.setOptions({
+                    headerRight: () => (
+                        <Icon
+                            name="heart-o"
+                            size={24}
+                            color="#FFFFFF"
+                            onPress={()=>Alert.alert(
+                                'Add Click to Favorite',
+                                'Are you sure to add Click to favourite',
+                                [
+                                    {
+                                        text:'Cancel', 
+                                        onPress:()=>{console.log("Not Deleted")},
+                                        style:'cancel'
+                                    },
+                                    {
+                                        text:'Add',
+                                        onPress:()=>{
+                                            this.props.addClickToFavourites(this.props.route.params.jwtToken,this.props.route.params.videoId);
+                                        }
+                                    }
+                                ],
+                                {cancelable:true}
+                            )}
+                        />
+                    ),
+                });
+            }
+        }
+
+
+        //Handling Favourite Notifications
+
+        if(prevProps.favourites.favourites.length<this.props.favourites.favourites.length){
+            this.presentAddFavouriteNotification();
+            console.log(prevProps.favourites.favourites.length+" "+this.props.favourites.favourites.length);
+        }
+
+
+        if(prevProps.favourites.favourites.length>this.props.favourites.favourites.length){
+            this.presentRemoveFavouriteNotification();
+            console.log(prevProps.favourites.favourites.length+" "+this.props.favourites.favourites.length);
+        }
+    }
+
 
     openBottomSheet=(commentIndex)=>{
         this.setState({
@@ -438,7 +643,6 @@ class ClickDetail extends Component{
     render(){
         
         const videoId=this.props.route.params.videoId;
-        //console.log(videoId);
         const clickDetails=this.props.route.params.clickDetails;
         return(
                 <ScrollView>

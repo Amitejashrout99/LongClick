@@ -18,6 +18,8 @@ import Login from './LoginComponent';
 import Signup from './SignupComponent';
 import UserFavourites from './FavouriteComponent';
 
+import DrawerScreen from '../screens/drawerScreen';
+
 const mapStateToProps= state =>{
     return{
         
@@ -179,7 +181,7 @@ function HomeStack()
                 options={({navigation,route})=>({
                     title:route.params.clickName,
                     headerRight:()=>(<Icon
-                        name="heart"
+                        name="heart-o"
                         size={24}
                         color="#FFFFFF"
                         onPress={()=>alert(route.params.videoId+" "+route.params.jwtToken)}
@@ -311,6 +313,7 @@ function MainDrawerStack()
             drawerContentOptions={{
                 activeBackgroundColor:"#D1C4E9",
             }}
+            drawerContent={(props) => <DrawerScreen {...props} />}
         >
 
             <MainDrawerNavigator.Screen

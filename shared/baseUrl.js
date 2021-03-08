@@ -1,1 +1,1 @@
-export const baseUrl="http://192.168.1.8:3000/";
+export const baseUrl="https://longclick.herokuapp.com/";

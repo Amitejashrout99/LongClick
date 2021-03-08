@@ -2,9 +2,9 @@ import React,{useState,useEffect} from 'react';
 import {StyleSheet,View,Text,ActivityIndicator,FlatList,ScrollView} from 'react-native';
 import {ListItem} from 'react-native-elements';
 import {useSelector,useDispatch} from 'react-redux';
-import {fetchAllFavourites} from '../redux/ActionCreators';
+import {fetchAllFavourites,checkClickFavouriteStatus} from '../redux/ActionCreators';
 
-const RenderFavouritesList=({allFavs,isLoading,errMess,props,jwtToken})=>{
+const RenderFavouritesList=({allFavs,isLoading,errMess,props,jwtToken,dispatch,setFavouriteStatus})=>{
     if(isLoading)
     {
         return(
@@ -47,14 +47,17 @@ const RenderFavouritesList=({allFavs,isLoading,errMess,props,jwtToken})=>{
         const renderFavouritesList=({item,index})=>{
             return(
                 <ListItem
-                    onPress={()=>props.navigation.navigate('ClickDetail',
-                    {
-                        clickDetails:item,
-                        clickName:item.title,
-                        jwtToken:jwtToken,
-                        videoId:item._id
-                    }
-                )}>
+                    key={index}
+                    onPress={()=>{
+                        props.navigation.navigate('ClickDetail',
+                        {
+                            clickDetails:item,
+                            clickName:item.title,
+                            jwtToken:jwtToken,
+                            videoId:item._id
+                        });
+                        dispatch(setFavouriteStatus(true));
+                    }}>
                     <ListItem.Content>
                         <ListItem.Title>{item.title}</ListItem.Title>
                         <ListItem.Subtitle>{item.description}</ListItem.Subtitle>
@@ -64,10 +67,11 @@ const RenderFavouritesList=({allFavs,isLoading,errMess,props,jwtToken})=>{
             );
         };
 
+
         return(
             <ScrollView>
                 <FlatList
-                    data={allFavs.videos}
+                    data={allFavs}
                     renderItem={renderFavouritesList}
                     keyExtractor={item=> item._id.toString()}
                 />
@@ -95,7 +99,8 @@ function UserFavourites(props)
         return(
             <ScrollView>
                     <RenderFavouritesList allFavs={favourites.favourites} errMess={favourites.errMess} 
-                    isLoading={favourites.isLoading} props={props} jwtToken={users.jwtToken} />
+                    isLoading={favourites.isLoading} props={props} jwtToken={users.jwtToken} dispatch={dispatch} 
+                    setFavouriteStatus={checkClickFavouriteStatus} />
             </ScrollView>
         );
     }

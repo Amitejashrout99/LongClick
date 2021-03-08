@@ -20,6 +20,12 @@ export const users=(state={
 
             return{...state,isLogginIn:false,errMess:action.payload,jwtToken:null,isAuthenticated:false};
 
+        case ACTION_TYPES.LOGOUT_SUCCESSFULL:
+            return{...state,jwtToken:null,isAuthenticated:false};
+
+        case ACTION_TYPES.LOGOUT_FAILURE:
+            return {...state,errMess:action.payload};
+
         case ACTION_TYPES.REFRESH_TOKEN_SUCCESSFULL:
             return {...state,jwtToken:action.payload,isAuthenticated:true};
         

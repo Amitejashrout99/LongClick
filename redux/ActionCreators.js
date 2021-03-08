@@ -2,6 +2,7 @@ import * as ActionTypes from './ActionTypes';
 import {baseUrl} from '../shared/baseUrl';
 import * as SecureStore from 'expo-secure-store';
 import { comments } from '../reducers/comments';
+import * as VideoThumbnails from 'expo-video-thumbnails';
 
 export const StoreJWTToken=(token)=>(dispatch)=>{
     console.log(token);
@@ -47,7 +48,27 @@ export const removeStoredJWTToken=()=>(dispatch)=>{
     SecureStore.deleteItemAsync('userJWT').catch((error)=>{
         console.log(error);
     });
-}
+};
+
+export const logoutUser=()=>(dispatch)=>{
+    SecureStore.deleteItemAsync('userJWT').then(()=>{
+        console.log("Logout Successful");
+        dispatch(logoutSuccessfull());
+    }).catch((error)=>{
+        console.log(error);
+        dispatch(logoutFailure());
+    });
+};
+
+export const logoutSuccessfull=()=>({
+    type:ActionTypes.LOGOUT_SUCCESSFULL
+});
+
+export const logoutFailure=(errMess)=>({
+    type:ActionTypes.LOGOUT_FAILURE,
+    payload:errMess
+});
+
 
 export const verifyTokenValidity=(token)=>(dispatch)=>{
     return fetch(baseUrl+'users/checkValidity/'+token).then((response)=>{
@@ -161,7 +182,7 @@ export const loginFailure=(errMess)=>({
 });
 
 
-export const fetchAllClicks=()=>(dispatch)=>{
+export const fetchAllClicks=()=>async(dispatch)=>{
     dispatch(clicksLoading());
 
     let url=[];
@@ -181,11 +202,63 @@ export const fetchAllClicks=()=>(dispatch)=>{
     }).then(
         response=>response.json()
     ).then(
+        async clicks=>{
+            //dispatch(addClick(clicks))
+            let videoUrlPromises=clicks.map(async(click)=>{
+                let response= await fetch(baseUrl+'click/clickDownload/'+click._id);
+                let signedUrl= await response.json();
+                
+                return signedUrl;
+            });
+        
+            let result= await Promise.all(videoUrlPromises);
+            console.log(result);
+            dispatch(addAllClicksUrls(result));
+
+            return [clicks,result];
+        }
+    ).then(
+        async ([clicks,results])=>{
+            let clickThumbnailPromise= results.map(async(result)=>{
+                let thumbnailUrl= await VideoThumbnails.getThumbnailAsync(result.url,{time:2000});
+                return thumbnailUrl;
+            });
+
+            let allThumbnailUrls= await Promise.all(clickThumbnailPromise);
+
+            dispatch(addAllClicksThumbnails(allThumbnailUrls));
+
+            return clicks;
+
+        }
+    ).then(
         clicks=>dispatch(addClick(clicks))
     ).catch(
         error=>dispatch(addClicksFailed(error.response.status))
     );
 };
+
+export const addAllClicksUrls=(clicksUrls)=>({
+    type:ActionTypes.GENERATE_ALL_CLICKS_URL_SUCCESSFULL,
+    payload:clicksUrls
+});
+
+export const addAllClicksUrlsFailure=(errMess)=>({
+    type:ActionTypes.GENERATE_ALL_CLICKS_URL_FAILURE,
+    payload:errMess
+});
+
+export const addAllClicksThumbnails=(thumbnailUrls)=>({
+    type:ActionTypes.GENERATE_CLICKS_THUMBNAILS_SUCCESSFULL,
+    payload:thumbnailUrls
+});
+
+export const addAllClicksThumbnailsFailure=(errMess)=>({
+    type:ActionTypes.GENERATE_CLICKS_THUMBNAILS_FAILURE,
+    payload:errMess
+});
+
+
 
 export const fetchClickSignedUrl=(videoId)=>(dispatch)=>{
     console.log(videoId);
@@ -211,6 +284,30 @@ export const fetchClickSignedUrl=(videoId)=>(dispatch)=>{
     );
 }
 
+/*export const createClicksThumbnails=(videoIds)=>async(dispatch)=>{
+    //console.log(videoIds);
+    let videoUrlPromises=videoIds.map(async(videoId)=>{
+        let response= await fetch(baseUrl+'click/clickDownload/'+videoId._id);
+        let signedUrl= await response.json();
+        
+        return signedUrl;
+    });
+
+    let result= await Promise.all(videoUrlPromises);
+    //let thumbnailUrls=[];
+    result.map(async(result)=>{
+        let clickThumbnailUrl= await VideoThumbnails.getThumbnailAsync(result.url,{
+            time:2000
+        });
+        dispatch(addThumbnailUrl(clickThumbnailUrl));     
+        console.log(clickThumbnailUrl);
+    });
+    
+    //let thumbnailUrl= await Promise.all(thumbnailUrlsPromise);
+
+    console.log(result);
+    //console.log(thumbnailUrls);
+}*/
 
 export const clicksLoading=()=>({
     type:ActionTypes.LOAD_ALL_CLICKS
@@ -487,7 +584,7 @@ export const fetchAllFavourites=(token)=>(dispatch)=>{
     }).then(
         response=>response.json()
     ).then(
-        allFavourites=>dispatch(addAllFavourites(allFavourites.favourite))
+        allFavourites=>dispatch(addAllFavourites(allFavourites.favourite.videos))
     ).catch(
         error=>dispatch(addFavouritesFailure(error.response.status))
     );
@@ -504,5 +601,135 @@ export const addAllFavourites=(favourites)=>({
 
 export const addFavouritesFailure=(errMess)=>({
     type:ActionTypes.ADD_FAVOURITES_FAILURE,
+    payload:errMess
+});
+
+
+export const fetchClickFavouriteStatus=(videoId,token)=>(dispatch)=>{
+    return fetch(baseUrl+'favourite/checkFavourite/'+videoId,{
+        method:'GET',
+        headers:{
+            'Content-Type':'Application/json',
+            'Authorization':'Bearer '+token
+        },
+        credentials:'same-origin'
+    }).then((response)=>{
+        if(response.ok)
+        {
+            return response;
+        }
+        else{
+            var error= new Error('Error '+ response.status+ ':'+ response.statusText);
+            error.response=response;
+            throw error;
+        }
+    },(error)=>{
+        var errMess= new Error(error.message)
+        throw errMess;
+    }).then(
+        response=>response.json()
+    ).then(
+        status=>dispatch(checkClickFavouriteStatus(status.status))
+    ).catch(
+        error=>dispatch(checkClickFavouriteFailure(error.response.status))
+    );
+};
+
+export const checkClickFavouriteStatus=(status)=>({
+    type:ActionTypes.CHECK_FAVOURITE_SUCCESSFULL,
+    payload:status
+});
+
+export const checkClickFavouriteFailure=(errMess)=>({
+    type:ActionTypes.CHECK_FAVOURITE_FAILURE,
+    payload:errMess
+});
+
+export const addClickToFavourites=(token,videoId)=>(dispatch)=>{
+    
+    console.log(token+" "+videoId);
+    
+    return fetch(baseUrl+'favourite/addFavourite/'+videoId,{
+        method:'POST',
+        headers:{
+            'Authorization':'Bearer '+token
+        },
+        credentials:'same-origin'
+    }).then((response)=>{
+        if(response.ok)
+        {
+            return response;
+        }
+        else{
+            var error= new Error('Error '+ response.status+ ':'+ response.statusText);
+            error.response=response;
+            throw error;
+        }
+    },(error)=>{
+        var errMess= new Error(error.message)
+        throw errMess;
+    }).then(
+        response=>response.json()
+    ).then(
+        newFavourites=>dispatch(addClickToFavourite(newFavourites.favourite.videos))
+    ).catch(
+        error=>dispatch(addClickToFavouriteFailure(error.response.status))
+    );
+};
+
+
+export const addClickToFavourite=(favourites)=>({
+    type:ActionTypes.MAKE_FAVOURITE_SUCCESSFULL,
+    payload:favourites
+});
+
+export const addClickToFavouriteFailure=(errMess)=>({
+    type:ActionTypes.MAKE_FAVOURITE_FAILURE,
+    payload:errMess
+});
+
+
+export const removeClickFromFavourites=(token,videoId)=>(dispatch)=>{
+    console.log(token+" "+videoId);
+
+    return fetch(baseUrl+'favourite/removeFavourite/'+videoId,{
+        method:'DELETE',
+        headers:{
+            'Authorization':'Bearer '+token
+        },
+        credentials:'same-origin'
+    }).then((response)=>{
+        if(response.ok)
+        {
+            return response;
+        }
+        else{
+            var error= new Error('Error '+ response.status+ ':'+ response.statusText);
+            error.response=response;
+            throw error;
+        }
+    },(error)=>{
+        var errMess= new Error(error.message)
+        throw errMess;
+    }).then(
+        response=>response.json()
+    ).then(
+        modifiedFavourites=>dispatch(removeClickFromFavourite(modifiedFavourites.favourite.videos))
+    ).catch(
+        error=>dispatch(removeClickFromFavourite(error.response.status))
+    );
+};
+
+
+
+
+export const removeClickFromFavourite=(favourites)=>({
+    type:ActionTypes.REMOVE_FAVOURITE_SUCCESSFULL,
+    payload:favourites
+});
+
+
+export const removeClickFromFavouriteFailure=(errMess)=>({
+    type:ActionTypes.REMOVE_FAVOURITE_FAILURE,
     payload:errMess
 });

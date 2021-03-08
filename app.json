@@ -5,6 +5,11 @@
     "name": "longClick",
     "slug": "longClick",
     "version": "1.0.0",
+    "icon":"./logo.png",
+    "android": {
+      "useNextNotificationsApi": true,
+      "package": "com.amitejash.longClick"
+    },
     "assetBundlePatterns": [
       "**/*"
     ]

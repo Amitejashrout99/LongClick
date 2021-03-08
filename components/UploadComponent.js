@@ -1,6 +1,6 @@
 import React,{Component} from 'react';
 import {Card,Button,Input} from 'react-native-elements';
-import {ScrollView,Text,StyleSheet,View,Dimensions,ActivityIndicator} from 'react-native';
+import {ScrollView,Text,StyleSheet,View,Dimensions,ActivityIndicator,Alert} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Permissions from 'expo-permissions';
 import * as Notifications from 'expo-notifications';
@@ -98,6 +98,46 @@ class Upload extends Component{
 
         this.props.getStoredJWTToken();
 
+    }
+
+    componentDidUpdate(prevProps,prevState){
+        if(this.props.users.isAuthenticated)
+        {
+            this.props.navigation.setOptions({
+                headerRight:()=>(
+                    <Icon
+                        name="sign-out"
+                        size={24}
+                        color="#FFFFFF"
+                        onPress={()=>Alert.alert(
+                            "Logout",
+                            "Are you sure to logout ?,This will remove all the stored credentials",
+                            [
+                                {
+                                    text:'Cancel', 
+                                    onPress:()=>{console.log("Not Deleted")},
+                                    style:'cancel'
+                                },
+                                {
+                                    text:'Logout',
+                                    onPress:()=>{
+                                        this.props.logoutUser();
+                                        this.presentLogoutSuccessfullNotification();
+                                    },
+                                    style:"destructive"
+                                }
+                            ]
+                        )} 
+                    />
+                )
+            });
+        }
+        if(!this.props.users.isAuthenticated)
+        {
+            this.props.navigation.setOptions({
+                headerRight:null
+            });
+        }
     }
 
 
