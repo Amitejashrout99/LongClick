@@ -181,12 +181,90 @@ export const loginFailure=(errMess)=>({
     payload:errMess
 });
 
+export const signupUser=(firstname,lastname,username,password)=>async(dispatch)=>{
+    
+    dispatch(isSigningUpUser());
+    let newUser={
+        "firstname":firstname,
+        "lastname":lastname,
+        "username":username,
+        "password":password
+    }
+
+    console.log(JSON.stringify(newUser));
+
+    return fetch(baseUrl+'users/signup',{
+        method:'POST',
+        body:JSON.stringify(newUser),
+        headers:{
+            'Content-Type':'application/json'
+        },
+        credentials:'same-origin'
+    }).then((response)=>{
+        if(response.ok)
+        {
+            return response;
+        }
+        else{
+            var error= new Error('Error '+ response.status+ ':'+ response.statusText);
+            error.response=response;
+            throw error;
+        }
+    },(error)=>{
+        var error= new Error('Error '+ response.status+ ':'+ response.statusText);
+        error.response=response;
+        throw error;
+    
+    }).then(
+        response=>response.json()
+    ).then(
+        async data=>{
+            await dispatch(signUpSucessfull(true));
+            let loginData= await fetch(baseUrl+'users/login',{
+                method:'POST',
+                body:JSON.stringify({
+                    "username":username,
+                    "password":password
+                }),
+                headers:{
+                    'Content-Type':'application/json'
+                },
+                credentials:'same-origin'
+            });
+            let loginResult= await loginData.json();
+            
+            await dispatch(isLogginIn());
+
+            return loginResult;
+        }
+    ).then(
+        loginResult=>dispatch(loginSuccessfull(loginResult.token))
+    ).catch((error)=>{
+        dispatch(signUpFailure(error.response.status))
+    });
+
+};
+
+export const isSigningUpUser=()=>({
+    type:ActionTypes.ATTEMPTING_TO_SIGNUP
+});
+
+export const signUpSucessfull=(status)=>({
+    type:ActionTypes.SIGNUP_SUCCESSFULL,
+    payload:status
+});
+
+export const signUpFailure=(errMess)=>({
+    type:ActionTypes.SIGNUP_FAILURE,
+    payload:errMess
+});
 
 export const fetchAllClicks=()=>async(dispatch)=>{
     dispatch(clicksLoading());
 
     let url=[];
     return fetch(baseUrl+'click/clickDownload').then((response)=>{
+        console.log(response);
         if(response.ok)
         {
             return response;
@@ -215,22 +293,27 @@ export const fetchAllClicks=()=>async(dispatch)=>{
             console.log(result);
             dispatch(addAllClicksUrls(result));
 
-            return [clicks,result];
+            return clicks;
         }
     ).then(
-        async ([clicks,results])=>{
-            let clickThumbnailPromise= results.map(async(result)=>{
-                let thumbnailUrl= await VideoThumbnails.getThumbnailAsync(result.url,{time:2000});
-                return thumbnailUrl;
+        
+        async clicks=>{
+
+            let thumbnailUrlPromise=clicks.map(async(click)=>{
+                let response= await fetch(baseUrl+'click/clickThumbnailDownload/'+click._id);
+                let thumbnailSignedUrl=await response.json();
+
+                return thumbnailSignedUrl;
             });
 
-            let allThumbnailUrls= await Promise.all(clickThumbnailPromise);
-
-            dispatch(addAllClicksThumbnails(allThumbnailUrls));
+            let result= await Promise.all(thumbnailUrlPromise);
+            console.log(result);
+            dispatch(addAllClicksThumbnails(result));
 
             return clicks;
 
         }
+
     ).then(
         clicks=>dispatch(addClick(clicks))
     ).catch(
@@ -340,14 +423,15 @@ export const postNewClick=(title,description,category,fileUrl,token)=>(dispatch)
         "category":category
     }
 
-    let fileType=fileUrl.split("/")[9].split('.')[1];
-    let fileName="Ravi"+Math.floor(Math.random()*100);
+    //let fileType=fileUrl.split("/")[9].split('.')[1];
+    let uploadTime= new Date();
+    let fileName=uploadTime.getHours()+""+uploadTime.getMinutes()+""+uploadTime.getSeconds();
 
 
     let newClick={
         "uri":fileUrl,
         "type":'video/mp4',
-        "name":`${fileName}.${fileType}`
+        "name":`${fileName}.mp4`
     }
 
     console.log(newClick);
@@ -381,9 +465,56 @@ export const postNewClick=(title,description,category,fileUrl,token)=>(dispatch)
     }).then(
         response=>response.json()
     ).then(
-        postData=>{
-            console.log(postData),
-            dispatch(updateAllClicks(postData.dbInfo))
+        async postData=>{
+            //console.log(postData)
+
+            let response= await fetch(baseUrl+'click/clickDownload/'+postData.dbInfo._id);
+            let signedUrl= await response.json();
+            
+            //console.log(signedUrl);
+
+            return [postData,signedUrl];
+        }
+    ).then(
+        
+        async([postData,signedUrl])=>{
+
+            let thumbnailUrl= await VideoThumbnails.getThumbnailAsync(signedUrl.url,{time:2000});
+            let thumbnailData={
+                "uri":thumbnailUrl.uri,
+                "type":'image/jpg',
+                "name":`${postData.dbInfo._id}thumbnail.jpg`
+            };
+    
+            console.log(postData+" "+signedUrl+" "+thumbnailData);
+
+            console.log(thumbnailData);
+            let formData1= new FormData();
+            formData1.append('thumbnail',thumbnailData);
+
+            let thumbnailResponse= await fetch(baseUrl+'click/clickThumbnailUpload/'+postData.dbInfo._id,{
+                method:'PUT',
+                body:formData1,
+                headers:{
+                    'Content-Type':'multipart/form-data',
+                    'Authorization':'Bearer '+token
+                },
+                credentials:`same-origin`});
+
+            let thumbnailResult= await thumbnailResponse.json();
+            console.log(thumbnailResult);
+            
+            return[postData,signedUrl];
+        }
+
+    ).then(
+        async([postData,signedUrl])=>{
+            let signedThumbnailUrlResponse= await fetch(baseUrl+'click/clickThumbnailDownload/'+postData.dbInfo._id);
+            let signedThumbnailUrlResult= await signedThumbnailUrlResponse.json();
+
+            await dispatch(updateAllClicksThumbnailsUrl(signedThumbnailUrlResult));
+            await dispatch(updateAllClicksUrl(signedUrl));
+            await dispatch(updateAllClicks(postData.dbInfo));
         }
     ).catch((error)=>{
         console.log(error);
@@ -392,6 +523,10 @@ export const postNewClick=(title,description,category,fileUrl,token)=>(dispatch)
 
 }
 
+ /*async signedUrl=>{
+            let thumbnailUrl= await VideoThumbnails.getThumbnailAsync(signedUrl.url,{time:2000});
+            dispatch(updateAllClicksThumbnailsUrl(thumbnailUrl));
+        }*/
 
 export const newClickUploading=()=>({
     type:ActionTypes.UPLOADING_NEW_CLICK
@@ -405,6 +540,11 @@ export const updateAllClicks=(newClick)=>({
 export const updateAllClicksUrl=(newClickUrl)=>({
     type:ActionTypes.UPDATE_ALL_CLICKS_URL,
     payload:newClickUrl
+});
+
+export const updateAllClicksThumbnailsUrl=(newThumbnailUrl)=>({
+    type:ActionTypes.UPDATE_ALL_CLICKS_THUMBNAILS_URLS,
+    payload:newThumbnailUrl
 });
 
 

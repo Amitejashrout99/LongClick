@@ -130,11 +130,13 @@ class Login extends Component{
         {
             this.props.StoreJWTToken(this.props.users.jwtToken);
             this.presentLoginRememberMeSuccessfullNotification();
+            this.props.navigation.navigate('Home');
         }
         if(prevProps.users.isAuthenticated!=this.props.users.isAuthenticated && !this.state.remember && this.props.users.isAuthenticated)
         {
             this.props.removeStoredJWTToken();
             this.presentLoginNotRememberMeSuccessfullNotification();
+            this.props.navigation.navigate('Home');
         }
     }
 

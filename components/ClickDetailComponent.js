@@ -1,8 +1,9 @@
 import React,{Component} from 'react';
-import {Card, ListItem,Rating,BottomSheet, Button,Input,Icon} from 'react-native-elements';
+import {Card, ListItem,Rating,BottomSheet, Button,Input} from 'react-native-elements';
 import {ScrollView,Text,View,StyleSheet,Dimensions,ActivityIndicator,FlatList,Alert,PanResponder} from 'react-native';
 import {Video,Audio} from 'expo-av';
 import VideoPlayer from 'expo-video-player';
+import Icon from 'react-native-vector-icons/FontAwesome';
 import {connect} from 'react-redux';
 import * as Notifications from 'expo-notifications';
 import {fetchAllComments,fetchClickSignedUrl,editComment,addComment,getStoredJWTToken,
@@ -37,14 +38,10 @@ function RenderVideoPlayer({signedUrl})
     if(signedUrl===null)
     {
         return(
-            <Card>
-                <Card.Title style={styles.headerText}>Fetching Video Details</Card.Title>
-                <Card.Divider/>
-                <View style={{ alignItems:`center`,justifyContent:`center`,flex:1,margin:20}}>
-                    <ActivityIndicator size="large" color="#512DA8"/>
-                    <Text style={styles.loadingText}>Fetching Video ....</Text>
-                </View>
-            </Card>
+            <View style={{ alignItems:`center`,justifyContent:`center`,flex:1,margin:20}}>
+                <ActivityIndicator size="large" color="#512DA8"/>
+                <Text style={styles.loadingText}>Fetching Video ....</Text>
+            </View>
         );
     }
     else{

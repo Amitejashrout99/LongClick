@@ -8,7 +8,8 @@
     "icon":"./logo.png",
     "android": {
       "useNextNotificationsApi": true,
-      "package": "com.amitejash.longClick"
+      "package": "com.amitejash.longClick",
+      "versionCode": 1
     },
     "assetBundlePatterns": [
       "**/*"

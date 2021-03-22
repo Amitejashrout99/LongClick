@@ -22,13 +22,15 @@ import DrawerScreen from '../screens/drawerScreen';
 
 const mapStateToProps= state =>{
     return{
-        
     }
 };
 
 const MapDispatchToProps= dispatch=>({
     fetchAllClicks:()=>dispatch(fetchAllClicks())
 });
+
+
+
 
 
 const AuthBottomTabNavigator= createBottomTabNavigator();
@@ -393,8 +395,6 @@ function MainDrawerStack()
     )
 }
 
-
-
 class Main extends Component{
 
     constructor(props)
@@ -406,6 +406,7 @@ class Main extends Component{
     {
         this.props.fetchAllClicks();
     }
+
 
     render(){
         return(

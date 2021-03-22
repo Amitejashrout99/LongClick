@@ -1,8 +1,12 @@
 import React,{useState,useEffect} from 'react';
-import {StyleSheet,View,Text,ActivityIndicator,FlatList,ScrollView} from 'react-native';
+import {StyleSheet,View,Text,ActivityIndicator,FlatList,ScrollView,RefreshControl} from 'react-native';
 import {ListItem} from 'react-native-elements';
 import {useSelector,useDispatch} from 'react-redux';
 import {fetchAllFavourites,checkClickFavouriteStatus} from '../redux/ActionCreators';
+
+const wait = (timeout) => {
+    return new Promise(resolve => setTimeout(resolve, timeout));
+  }
 
 const RenderFavouritesList=({allFavs,isLoading,errMess,props,jwtToken,dispatch,setFavouriteStatus})=>{
     if(isLoading)
@@ -87,8 +91,18 @@ function UserFavourites(props)
     const favourites=useSelector((state)=>state.favourites);
     const users=useSelector((state)=>state.users);
     const [authenticated,setAuthenticated]= useState(users.isAuthenticated);
+    const [refreshing, setRefreshing] = useState(false);
+
     const dispatch=useDispatch();
 
+    
+    const onRefresh=()=>{
+        setRefreshing(true);
+        wait(2000).then(() =>{
+            setRefreshing(false);
+            dispatch(fetchAllFavourites(users.jwtToken));
+        });
+    };
 
     useEffect(()=>{
         dispatch(fetchAllFavourites(users.jwtToken));
@@ -97,7 +111,11 @@ function UserFavourites(props)
     if(authenticated)
     {
         return(
-            <ScrollView>
+            <ScrollView refreshControl={
+                <RefreshControl 
+                    refreshing={refreshing}
+                    onRefresh={onRefresh} 
+                />}>
                     <RenderFavouritesList allFavs={favourites.favourites} errMess={favourites.errMess} 
                     isLoading={favourites.isLoading} props={props} jwtToken={users.jwtToken} dispatch={dispatch} 
                     setFavouriteStatus={checkClickFavouriteStatus} />

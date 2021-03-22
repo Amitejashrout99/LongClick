@@ -48,7 +48,11 @@ export const clicks=(state={
 
         case ACTION_TYPES.UPDATE_ALL_CLICKS_URL:
 
-            return{...state,clicksUrl:state.clicksUrl.concat(action.payload),isUploading:false};
+            return{...state,clicksUrls:state.clicksUrls.concat(action.payload),isUploading:true};
+
+        case ACTION_TYPES.UPDATE_ALL_CLICKS_THUMBNAILS_URLS:
+            return {...state,clickThumbnailUrls:state.clickThumbnailUrls.concat(action.payload),isUploading:true};
+        
 
         default:
             return state;

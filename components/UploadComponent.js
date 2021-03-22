@@ -1,11 +1,10 @@
 import React,{Component} from 'react';
-import {Card,Button,Input} from 'react-native-elements';
+import {Card,Button,Input,Icon} from 'react-native-elements';
 import {ScrollView,Text,StyleSheet,View,Dimensions,ActivityIndicator,Alert} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Permissions from 'expo-permissions';
 import * as Notifications from 'expo-notifications';
 import {Video,Audio} from 'expo-av';
-import Icon from 'react-native-vector-icons/FontAwesome';
 import {postNewClick,getStoredJWTToken} from '../redux/ActionCreators';
 import {connect} from 'react-redux';
 
@@ -28,7 +27,7 @@ const mapDispatchToProps = dispatch=>({
 function RenderLoader({status})
 {
     console.log(status);
-    if(status)
+    if(!status)
     {
         return(
             <View style={{ alignItems:`center`,justifyContent:`center`,flex:1,margin:20}}>
@@ -138,6 +137,19 @@ class Upload extends Component{
                 headerRight:null
             });
         }
+        if(this.props.clicks.isUploading)
+        {
+            this.props.navigation.setOptions({
+                title:"Uploading New Click"
+            });
+        }
+        if(prevProps.clicks.clicks.length<this.props.clicks.clicks.length && !this.props.clicks.isUploading)
+        {
+            this.presentClickUploadedNotification();
+            this.props.navigation.setOptions({
+                title:"Upload Click"
+            });
+        }
     }
 
 
@@ -181,7 +193,7 @@ class Upload extends Component{
         return permission;
     }
 
-    async presentLocalNotification()
+    async presentClickUploadedNotification()
     {
         console.log("Going");
         await this.obtainNotificationPermission;
@@ -208,27 +220,29 @@ class Upload extends Component{
         if(this.state.videoUrl==='')
         {
             return(
-                <ScrollView>
-                    <Card>
-                        <Card.Title>Click Upload</Card.Title>
-                        <Card.Divider/>
-                        <Text>Please Click on the upload Video Button to upload a video</Text>
-                        <Text>{this.state.data}</Text>
-                            <Button 
-                                title="Upload Click" 
-                                raised 
-                                icon={
-                                        <Icon
-                                            name="upload"
-                                            size={24}
-                                            color="black"
-                                        />
-                                }
-
-                                buttonStyle={styles.buttonStyle}
-                                onPress={()=>this.getVideoFromCamera()}
+                <ScrollView contentContainerStyle={{flex:1,justifyContent:`center`,alignItems:`center`}}>
+                    <View style={{flex:1,justifyContent:`center`,alignItems:`center`,}}>
+                        <Icon raised 
+                            reverse 
+                            name='plus' 
+                            type='font-awesome'
+                            size={45}
+                            disabled={!this.props.users.isAuthenticated}
+                            disabledStyle={{backgroundColor:"#808080"}}
+                            color='#512DA8' onPress={()=>this.getVideoFromCamera()}
                             />
-                    </Card>
+                        <Text style={{fontStyle:`normal`,fontWeight:`bold`,padding:10}}>Use Camera</Text>
+                        <Icon raised 
+                            reverse 
+                            name='picture-o' 
+                            type='font-awesome'
+                            size={45}
+                            disabled={!this.props.users.isAuthenticated}
+                            disabledStyle={{backgroundColor:"#808080"}}
+                            color='#512DA8' onPress={()=>alert("Current Functionality not available")}
+                            />
+                        <Text style={{fontStyle:`normal`,fontWeight:`bold`,padding:10}}>Use Gallery</Text>
+                    </View>
                     <RenderAuthenticationStatus status={this.props.users.isAuthenticated}/>
                 </ScrollView>
             );
@@ -238,9 +252,6 @@ class Upload extends Component{
             return(
                 
                 <ScrollView>
-                    <RenderLoader 
-                        status={this.props.clicks.isUploading}
-                    />
                     <Card>
                         <Card.Title>Click Preview</Card.Title>
                         <Card.Divider/>
@@ -322,20 +333,14 @@ class Upload extends Component{
                     <Card>
                         <Button 
                             title="Retake Click" 
-                            raised 
-                            icon={
-                                    <Icon
-                                        name="upload"
-                                        size={24}
-                                        color="black"
-                                    />
-                            }
+                            raised
                             buttonStyle={styles.buttonStyle}    
                             onPress={()=>this.getVideoFromCamera()}
                         />
                         <Button 
                             title="Upload Click" 
                             raised
+                            loading={this.props.clicks.isUploading}
                             disabled={this.state.uploadClickButtonStatus && !this.props.users.isAuthenticated}
                             icon={
                                 <Icon

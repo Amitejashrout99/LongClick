@@ -1,12 +1,14 @@
 import React,{Component} from 'react';
 import {Card} from 'react-native-elements';
-import {ScrollView,Text,FlatList, StyleSheet,View,Alert,ActivityIndicator} from 'react-native';
+import {ScrollView,Text,FlatList, StyleSheet,View,Alert,ActivityIndicator,Dimensions,RefreshControl} from 'react-native';
 import {connect} from 'react-redux';
 import {Button,Tile,Image,Overlay} from 'react-native-elements';
 import * as Notifications from 'expo-notifications';
-import {getStoredJWTToken,fetchClickFavouriteStatus,logoutUser,createClicksThumbnails} from '../redux/ActionCreators';
+import {getStoredJWTToken,fetchClickFavouriteStatus,logoutUser,createClicksThumbnails,fetchAllClicks} from '../redux/ActionCreators';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import * as VideoThumbnails from 'expo-video-thumbnails';
+import { baseUrl } from '../shared/baseUrl';
+//var uniqid = require('uniqid');
 
 const mapStateToProps=(state)=>{
     return{
@@ -19,10 +21,13 @@ const mapDispatchToProps=dispatch=>({
     getStoredJWTToken:()=>dispatch(getStoredJWTToken()),
     fetchClickFavouriteStatus:(videoId,token)=>dispatch(fetchClickFavouriteStatus(videoId,token)),
     logoutUser:()=>dispatch(logoutUser()),
-    createClicksThumbnails:(videoIds)=>dispatch(createClicksThumbnails(videoIds))
+    createClicksThumbnails:(videoIds)=>dispatch(createClicksThumbnails(videoIds)),
+    fetchAllClicks:()=>dispatch(fetchAllClicks())
 });
 
-
+const wait = (timeout) => {
+    return new Promise(resolve => setTimeout(resolve, timeout));
+  }
 
 class Home extends Component{
 
@@ -30,7 +35,8 @@ class Home extends Component{
     {
         super(props);
         this.state={
-            imageUrls:[]
+            imageUrls:[],
+            refreshing:false
         }
         
     }
@@ -49,6 +55,7 @@ class Home extends Component{
         });
         this.props.getStoredJWTToken();
     }
+
 
     async obtainNotificationPermission(){
         let permission = await Notifications.getPermissionsAsync();
@@ -193,11 +200,12 @@ class Home extends Component{
                 return(
                     <Tile
                         key={index}
+                        width={width-26}
                         hideChevron={true}
                         title={item.title}
-                        containerStyle={{height:500,backgroundColor:'#512AD8'}}
+                        containerStyle={{height:500,backgroundColor:'#512AD8',borderRadius:10,marginLeft:13,marginRight:13,marginTop:5,zIndex:2}}
                         titleStyle={{color:`white`}}
-                        imageSrc={{uri:this.props.clicks.clickThumbnailUrls[+index].uri}}
+                        imageSrc={{uri:this.props.clicks.clickThumbnailUrls[+index].url}}
                         onPress={()=>{
                             this.props.navigation.navigate('ClickDetail',
                             {
@@ -219,11 +227,23 @@ class Home extends Component{
             }
     
             return(
-                <ScrollView>
+                <ScrollView refreshControl={<RefreshControl refreshing={this.state.refreshing} 
+                    onRefresh={()=>{
+                        this.setState({refreshing:true})
+                        wait(2000).then(() =>{
+                            this.setState({refreshing:false});
+                            this.props.fetchAllClicks();
+                        });
+                    }}/>}>
                     <FlatList
                         data={this.props.clicks.clicks}
                         renderItem={renderVideoList}
                         keyExtractor={item => item._id.toString()}
+                        ItemSeparatorComponent={()=><View style={{
+                            height:5,
+                            width: "100%",
+                            backgroundColor:'transparent',
+                          }} />}
                     />                      
                 </ScrollView>
                 
@@ -233,6 +253,9 @@ class Home extends Component{
     }
 
 }
+
+let height = Dimensions.get('screen').height; //full width
+let width = Dimensions.get('screen').width; //full width
 
 const styles= StyleSheet.create({
     videoPlayer:{
